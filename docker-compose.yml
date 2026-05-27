@@ -1,0 +1,43 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: flightdb
+      MYSQL_USER: flightuser
+      MYSQL_PASSWORD: NewPassword123
+      MYSQL_ROOT_PASSWORD: NewPassword123
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uflightuser", "-pNewPassword123"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  flight-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:5173
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/flightdb?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: flightuser
+      SPRING_DATASOURCE_PASSWORD: NewPassword123
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  flight-app:
+    build:
+      context: ./flight-app
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      flight-service:
+        condition: service_started
+
+volumes:
+  mysql-data:
